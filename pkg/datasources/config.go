@@ -14,6 +14,7 @@ type Config struct {
 	dialect          dialects.Builder
 	ConnectionString string
 	PoolConfig
+	Debug bool
 }
 
 func (c *Config) Dialect(builder dialects.Builder) *Config {

@@ -1,7 +1,6 @@
 package datasources
 
 import (
-	"github.com/goccha/envar"
 	"github.com/goccha/log"
 	"github.com/pkg/errors"
 	"time"
@@ -41,7 +40,7 @@ func newDB(config *Config) *gorm.DB {
 	if err != nil {
 		panic(err)
 	}
-	conn.LogMode(envar.Get("GORM_LOG_MODE").Bool(false))
+	conn.LogMode(config.Debug)
 	conn.DB().SetMaxIdleConns(config.MaxIdleConns)
 	conn.DB().SetMaxOpenConns(config.MaxOpenConns)
 	conn.DB().SetConnMaxLifetime(config.ConnMaxLifetime)
