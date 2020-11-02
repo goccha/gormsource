@@ -28,7 +28,7 @@ type Builder struct {
 }
 
 func (b *Builder) Name() string {
-	return "postgresql"
+	return "postgres"
 }
 
 func (b *Builder) Build(user, password, host string, port int, dbname string) string {
