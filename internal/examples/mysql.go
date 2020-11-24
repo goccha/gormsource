@@ -1,18 +1,17 @@
-package main
+package examples
 
 import (
 	"github.com/goccha/gormsource/pkg/datasources"
 	"github.com/goccha/gormsource/pkg/datasources/mysql"
-	"github.com/rs/zerolog/log"
+	"gorm.io/gorm"
 	"os"
 	"time"
 )
 
-func main() {
+func InitMysql() (*gorm.DB, error) {
 	c := datasources.Config{
-		User:   "user",
-		Pass:   "password",
-		Host:   "localhost",
+		User:   "test",
+		Pass:   "test",
 		Schema: "testdb",
 		PoolConfig: datasources.PoolConfig{
 			MaxIdleConns:    10,
@@ -34,6 +33,7 @@ func main() {
 	ds := datasources.NewDataSource(c.Dialect(mysql.New(mysql.Env(&env))))
 	db := ds.GetConnection()
 	if db.Error != nil {
-		log.Err(db.Error)
+		return nil, db.Error
 	}
+	return db, nil
 }
