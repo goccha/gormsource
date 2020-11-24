@@ -26,7 +26,7 @@ func (e *Env) Build(builder dialects.Builder) *Config {
 		config.User = envar.String(e.User, "DB_USER")
 		config.Pass = envar.String(e.Pass, "DB_PASSWORD")
 		config.Host = envar.Get(e.Host, "DB_HOST").String("127.0.0.1")
-		config.Port = envar.Get(e.Port, "DB_PORT").Int(3306)
+		config.Port = envar.Get(e.Port, "DB_PORT").Int(0)
 		config.Schema = envar.String(e.Schema, "DB_SCHEMA")
 	}
 	config.Dialect(builder)

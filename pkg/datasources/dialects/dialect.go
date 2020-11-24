@@ -1,10 +1,15 @@
 package dialects
 
-import "strings"
+import (
+	"gorm.io/gorm"
+	"strings"
+)
 
 type Builder interface {
 	Name() string
-	Build(user, password, host string, port int, dbname string) string
+	Build(user, password, host string, port int, dbname string) gorm.Dialector
+	BuildString(user, password, host string, port int, dbname string) string
+	BuildDialector(url string) gorm.Dialector
 }
 
 type Option func(b Builder)

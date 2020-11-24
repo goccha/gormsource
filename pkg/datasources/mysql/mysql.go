@@ -3,10 +3,14 @@ package mysql
 import (
 	"github.com/goccha/envar"
 	"github.com/goccha/gormsource/pkg/datasources/dialects"
+	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
 	"strconv"
 	"strings"
+)
 
-	_ "github.com/jinzhu/gorm/dialects/mysql"
+const (
+	DefaultPort = "3306"
 )
 
 func New(options ...dialects.Option) *Builder {
@@ -55,7 +59,12 @@ func and(builder *strings.Builder) *strings.Builder {
 	}
 	return builder
 }
-func (b *Builder) Build(user, password, host string, port int, dbname string) string {
+
+func (b *Builder) BuildDialector(url string) gorm.Dialector {
+	return mysql.Open(url)
+}
+
+func (b *Builder) BuildString(user, password, host string, port int, dbname string) string {
 	buf := &strings.Builder{}
 	buf.WriteString(user)
 	buf.WriteString(":")
@@ -80,7 +89,7 @@ func (b *Builder) Build(user, password, host string, port int, dbname string) st
 		if port > 0 {
 			buf.WriteString(strconv.Itoa(port))
 		} else {
-			buf.WriteString("3306")
+			buf.WriteString(DefaultPort)
 		}
 	}
 	buf.WriteString(")/")
@@ -164,6 +173,10 @@ func (b *Builder) Build(user, password, host string, port int, dbname string) st
 		buf.WriteString(options.String())
 	}
 	return buf.String()
+}
+
+func (b *Builder) Build(user, password, host string, port int, dbname string) gorm.Dialector {
+	return mysql.Open(b.BuildString(user, password, host, port, dbname))
 }
 
 //func DefaultOptions() *Option {

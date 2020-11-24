@@ -3,18 +3,18 @@ package datasources
 import (
 	"github.com/goccha/log"
 	"github.com/pkg/errors"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 	"time"
-
-	"github.com/jinzhu/gorm"
 )
 
-func connect(dialect string, options interface{}) (*gorm.DB, error) {
+func connect(dialect gorm.Dialector, config *gorm.Config) (*gorm.DB, error) {
 	d := 1 * time.Second
 	timeout := true
 	var conn *gorm.DB
 	count := 20
 	for count > 0 {
-		c, err := gorm.Open(dialect, options)
+		c, err := gorm.Open(dialect, config)
 		if err != nil {
 			log.Info("%v", err)
 			time.Sleep(d)
@@ -36,15 +36,21 @@ func newDB(config *Config) *gorm.DB {
 	dialect := config.dialect.Name()
 	log.Info("newConnection(" + dialect + ")")
 	log.Debug(config.String())
-	conn, err := connect(dialect, config.String())
+	db, err := connect(config.Build(), &config.Config)
 	if err != nil {
 		panic(err)
 	}
-	conn.LogMode(config.Debug)
-	conn.DB().SetMaxIdleConns(config.MaxIdleConns)
-	conn.DB().SetMaxOpenConns(config.MaxOpenConns)
-	conn.DB().SetConnMaxLifetime(config.ConnMaxLifetime)
-	return conn
+	sqlDb, err := db.DB()
+	if err != nil {
+		panic(err)
+	}
+	if config.Debug {
+		db.Logger = db.Logger.LogMode(logger.Info)
+	}
+	sqlDb.SetMaxIdleConns(config.MaxIdleConns)
+	sqlDb.SetMaxOpenConns(config.MaxOpenConns)
+	sqlDb.SetConnMaxLifetime(config.ConnMaxLifetime)
+	return db
 }
 
 type DataSource struct {
@@ -59,4 +65,16 @@ func NewDataSource(c *Config) *DataSource {
 		c = &Config{}
 	}
 	return &DataSource{newDB(c)}
+}
+
+func Close(db *gorm.DB) {
+	if db != nil {
+		if sqlDB, err := db.DB(); err != nil {
+			log.Warn("%v", err)
+		} else {
+			if err := sqlDB.Close(); err != nil {
+				log.Warn("%v", err)
+			}
+		}
+	}
 }

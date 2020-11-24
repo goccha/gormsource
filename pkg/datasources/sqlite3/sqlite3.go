@@ -3,6 +3,8 @@ package sqlite3
 import (
 	"github.com/goccha/envar"
 	"github.com/goccha/gormsource/pkg/datasources/dialects"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 	"strings"
 	//_ "github.com/jinzhu/gorm/dialects/sqlite"
 )
@@ -22,10 +24,19 @@ type Builder struct {
 func (b *Builder) Name() string {
 	return "sqlite3"
 }
-func (b *Builder) Build(user, password, host string, port int, dbname string) string {
+
+func (b *Builder) BuildDialector(url string) gorm.Dialector {
+	return sqlite.Open(url)
+}
+
+func (b *Builder) BuildString(user, password, host string, port int, dbname string) string {
 	buf := &strings.Builder{}
 	buf.WriteString(b.Path)
 	return buf.String()
+}
+
+func (b *Builder) Build(user, password, host string, port int, dbname string) gorm.Dialector {
+	return sqlite.Open(b.BuildString(user, password, host, port, dbname))
 }
 
 type Environment struct {

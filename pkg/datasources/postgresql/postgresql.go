@@ -3,11 +3,15 @@ package postgresql
 import (
 	"github.com/goccha/envar"
 	"github.com/goccha/gormsource/pkg/datasources/dialects"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 	"strconv"
 	"strings"
 	"time"
+)
 
-	_ "github.com/jinzhu/gorm/dialects/postgres"
+const (
+	DefaultPort = "5432"
 )
 
 func New(options ...dialects.Option) *Builder {
@@ -31,7 +35,11 @@ func (b *Builder) Name() string {
 	return "postgres"
 }
 
-func (b *Builder) Build(user, password, host string, port int, dbname string) string {
+func (b *Builder) BuildDialector(url string) gorm.Dialector {
+	return postgres.Open(url)
+}
+
+func (b *Builder) BuildString(user, password, host string, port int, dbname string) string {
 	buf := &strings.Builder{}
 	dialects.WriteString(buf, "user", user, "")
 	dialects.WriteString(buf, "password", password, " ")
@@ -40,6 +48,8 @@ func (b *Builder) Build(user, password, host string, port int, dbname string) st
 	}
 	if port > 0 {
 		dialects.WriteString(buf, "port", strconv.Itoa(port), " ")
+	} else {
+		dialects.WriteString(buf, "port", DefaultPort, " ")
 	}
 	dialects.WriteString(buf, "dbname", dbname, " ")
 	if b.SslMode != "" {
@@ -62,6 +72,10 @@ func (b *Builder) Build(user, password, host string, port int, dbname string) st
 		dialects.WriteString(buf, "sslrootcert", b.SslRootCert, " ")
 	}
 	return buf.String()
+}
+
+func (b *Builder) Build(user, password, host string, port int, dbname string) gorm.Dialector {
+	return postgres.Open(b.BuildString(user, password, host, port, dbname))
 }
 
 type SSLOption string
