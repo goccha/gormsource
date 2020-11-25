@@ -19,6 +19,14 @@ func SetDefaultConnector(b Connector) {
 	defaultConnector = b
 }
 
+func DB(ctx context.Context) *gorm.DB {
+	if v := ctx.Value(withTransaction); v == nil {
+		return getConnection(ctx)
+	} else {
+		return v.(*gorm.DB)
+	}
+}
+
 func getConnection(ctx context.Context) *gorm.DB {
 	if v := ctx.Value(transactionSource); v == nil {
 		return defaultConnector()

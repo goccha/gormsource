@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"github.com/goccha/gormsource/internal/examples"
 	"github.com/goccha/gormsource/pkg/gormsource"
 	"gorm.io/gorm"
@@ -44,6 +45,16 @@ func main() {
 				db = db.Create(&entity)
 				if db.Error != nil {
 					return db.Error
+				}
+				if entity2, err := examples.GetPostgresEntity(ctx, entity.ID); err != nil {
+					return err
+				} else if entity2 == nil {
+					return fmt.Errorf("%s not found", entity.ID)
+				}
+				if entity3, err := examples.GetPostgresEntity(context.Background(), entity.ID); err != nil {
+					return err
+				} else if entity3 != nil {
+					return fmt.Errorf("invalid transaction")
 				}
 				return nil
 			}); err != nil {
