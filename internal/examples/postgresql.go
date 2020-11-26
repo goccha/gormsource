@@ -5,7 +5,7 @@ import (
 	"errors"
 	"github.com/goccha/gormsource/pkg/datasources"
 	"github.com/goccha/gormsource/pkg/datasources/postgresql"
-	"github.com/goccha/gormsource/pkg/gormsource"
+	"github.com/goccha/gormsource/pkg/transactions"
 	"gorm.io/gorm"
 	"os"
 )
@@ -30,7 +30,7 @@ func InitPosgres() (*gorm.DB, error) {
 }
 
 func GetPostgresEntity(ctx context.Context, id string) (*ExampleTable, error) {
-	db := gormsource.DB(ctx)
+	db := transactions.DB(ctx)
 	entity := &ExampleTable{
 		ID: id,
 	}

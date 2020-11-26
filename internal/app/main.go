@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/goccha/gormsource/internal/examples"
-	"github.com/goccha/gormsource/pkg/gormsource"
+	"github.com/goccha/gormsource/pkg/transactions"
 	"gorm.io/gorm"
 )
 
@@ -12,7 +12,7 @@ func main() {
 	if mydb, err := examples.InitMysql(); err != nil {
 		panic(err)
 	} else {
-		gormsource.SetDefaultConnector(func() *gorm.DB {
+		transactions.SetDefaultConnector(func() *gorm.DB {
 			return mydb
 		})
 		if err := examples.Migrate(mydb); err != nil {
@@ -26,7 +26,7 @@ func main() {
 			panic(err)
 		}
 		var ctx = context.Background()
-		if err := gormsource.RunTransaction(ctx, func(ctx context.Context, db *gorm.DB) error {
+		if err := transactions.Run(ctx, func(ctx context.Context, db *gorm.DB) error {
 			entity := examples.ExampleTable{
 				ID:   "key1",
 				Desc: "test01",
@@ -35,7 +35,7 @@ func main() {
 			if db.Error != nil {
 				return db.Error
 			}
-			if err := gormsource.RunTransaction(gormsource.Begin(ctx, func() *gorm.DB {
+			if err := transactions.Run(transactions.Begin(ctx, func() *gorm.DB {
 				return pdb
 			}), func(ctx context.Context, db *gorm.DB) error {
 				entity := examples.ExampleTable{

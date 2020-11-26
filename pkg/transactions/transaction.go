@@ -1,4 +1,4 @@
-package gormsource
+package transactions
 
 import (
 	"context"
@@ -11,17 +11,14 @@ const (
 	transactionSource = "transactionSource"
 )
 
-// deprecated
 type Connector func() *gorm.DB
 
 var defaultConnector Connector
 
-// deprecated
 func SetDefaultConnector(b Connector) {
 	defaultConnector = b
 }
 
-// deprecated
 func DB(ctx context.Context) *gorm.DB {
 	if v := ctx.Value(withTransaction); v == nil {
 		return getConnection(ctx)
@@ -38,24 +35,22 @@ func getConnection(ctx context.Context) *gorm.DB {
 	}
 }
 
-// deprecated
 func Begin(ctx context.Context, f Connector) context.Context {
 	return context.WithValue(ctx, transactionSource, f)
 }
 
-func WithTransaction(ctx context.Context, f func(ctx context.Context, db *gorm.DB) error) error {
+func With(ctx context.Context, f func(ctx context.Context, db *gorm.DB) error) error {
 	if v := ctx.Value(withTransaction); v == nil {
-		return RunTransaction(ctx, f)
+		return Run(ctx, f)
 	} else {
 		return f(ctx, v.(*gorm.DB))
 	}
 }
 
-// deprecated
-func RunTransaction(ctx context.Context, txFunc func(ctx context.Context, db *gorm.DB) error) (err error) {
+func Run(ctx context.Context, txFunc func(ctx context.Context, db *gorm.DB) error) (err error) {
 	if v := ctx.Value(withTransaction); v != nil {
 		ctx = context.WithValue(ctx, withTransaction, nil) // 新しいトランザクションをはじめる
-		return RunTransaction(ctx, txFunc)
+		return Run(ctx, txFunc)
 	} else {
 		return runTransaction(ctx, func(ctx context.Context, db *gorm.DB) error {
 			ctx = context.WithValue(ctx, withTransaction, db)
