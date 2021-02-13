@@ -1,24 +1,23 @@
 package examples
 
 import (
-	"context"
-	"errors"
 	"github.com/goccha/gormsource/pkg/datasources"
-	"github.com/goccha/gormsource/pkg/datasources/postgresql"
-	"github.com/goccha/gormsource/pkg/transactions"
+	"github.com/goccha/gormsource/pkg/dialects/postgresql"
 	"gorm.io/gorm"
 	"os"
 )
 
-func InitPosgres() (*gorm.DB, error) {
+func InitPrimaryPosgres() (*gorm.DB, error) {
 	env := datasources.Env{
 		User:   "POSTGRES_USER",
 		Pass:   "POSTGRES_PASSWORD",
 		Schema: "POSTGRES_SCHEMA",
+		Debug:  "POSTGRES_DEBUG",
 	}
 	_ = os.Setenv("POSTGRES_USER", "test")
 	_ = os.Setenv("POSTGRES_PASSWORD", "test")
 	_ = os.Setenv("POSTGRES_SCHEMA", "testdb")
+	_ = os.Setenv("POSTGRES_DEBUG", "true")
 
 	c := env.Build(postgresql.New(postgresql.SSLMode(postgresql.SslDisable)))
 	ds := datasources.NewDataSource(c)
@@ -29,17 +28,25 @@ func InitPosgres() (*gorm.DB, error) {
 	return db, nil
 }
 
-func GetPostgresEntity(ctx context.Context, id string) (*ExampleTable, error) {
-	db := transactions.DB(ctx)
-	entity := &ExampleTable{
-		ID: id,
+func InitReplicaPosgres() (*gorm.DB, error) {
+	env := datasources.Env{
+		User:   "POSTGRES_USER",
+		Pass:   "POSTGRES_PASSWORD",
+		Port:   "POSTGRES_PORT",
+		Schema: "POSTGRES_SCHEMA",
+		Debug:  "POSTGRES_DEBUG",
 	}
-	db = db.First(entity)
-	if errors.Is(db.Error, gorm.ErrRecordNotFound) {
-		return nil, nil
-	}
+	_ = os.Setenv("POSTGRES_USER", "test")
+	_ = os.Setenv("POSTGRES_PASSWORD", "test")
+	_ = os.Setenv("POSTGRES_SCHEMA", "testdb")
+	_ = os.Setenv("POSTGRES_PORT", "5532")
+	_ = os.Setenv("POSTGRES_DEBUG", "true")
+
+	c := env.Build(postgresql.New(postgresql.SSLMode(postgresql.SslDisable)))
+	ds := datasources.NewDataSource(c)
+	db := ds.GetConnection()
 	if db.Error != nil {
 		return nil, db.Error
 	}
-	return entity, nil
+	return db, nil
 }

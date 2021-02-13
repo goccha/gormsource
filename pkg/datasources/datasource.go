@@ -1,8 +1,8 @@
 package datasources
 
 import (
+	"github.com/goccha/errors"
 	"github.com/goccha/log"
-	"github.com/pkg/errors"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 	"time"

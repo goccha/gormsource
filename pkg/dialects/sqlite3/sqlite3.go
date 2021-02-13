@@ -2,11 +2,10 @@ package sqlite3
 
 import (
 	"github.com/goccha/envar"
-	"github.com/goccha/gormsource/pkg/datasources/dialects"
+	"github.com/goccha/gormsource/pkg/dialects"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"strings"
-	//_ "github.com/jinzhu/gorm/dialects/sqlite"
 )
 
 func New(options ...dialects.Option) *Builder {
@@ -54,6 +53,8 @@ func Env(env *Environment) dialects.Option {
 }
 func Path(value string) dialects.Option {
 	return func(b dialects.Builder) {
-		b.(*Builder).Path = value
+		if value != "" {
+			b.(*Builder).Path = value
+		}
 	}
 }

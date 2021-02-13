@@ -2,26 +2,41 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"github.com/goccha/gormsource/internal/examples"
+	"github.com/goccha/gormsource/pkg/replicas"
 	"github.com/goccha/gormsource/pkg/transactions"
 	"gorm.io/gorm"
+	"time"
 )
 
 func main() {
-	if mydb, err := examples.InitMysql(); err != nil {
+	if mydb, err := transactions.Setup(func() (*gorm.DB, error) {
+		return examples.InitPrimaryMysql()
+	}, &sql.TxOptions{
+		Isolation: sql.LevelReadCommitted,
+	}); err != nil {
 		panic(err)
 	} else {
-		transactions.SetDefaultConnector(func() *gorm.DB {
-			return mydb
-		})
 		if err := examples.Migrate(mydb); err != nil {
 			panic(err)
 		}
 	}
-	if pdb, err := examples.InitPosgres(); err != nil {
+	if _, err := replicas.Setup(func() (*gorm.DB, error) {
+		return examples.InitReplicaMysql()
+	}); err != nil {
+		panic(err)
+	}
+	if pdb, err := examples.InitPrimaryPosgres(); err != nil {
 		panic(err)
 	} else {
+		var rpdb *replicas.DB
+		if rpdb, err = replicas.New(func() (*gorm.DB, error) {
+			return examples.InitReplicaPosgres()
+		}); err != nil {
+			panic(err)
+		}
 		if err := examples.Migrate(pdb); err != nil {
 			panic(err)
 		}
@@ -35,9 +50,7 @@ func main() {
 			if db.Error != nil {
 				return db.Error
 			}
-			if err := transactions.Run(transactions.Begin(ctx, func() *gorm.DB {
-				return pdb
-			}), func(ctx context.Context, db *gorm.DB) error {
+			if err := transactions.Run(transactions.Begin(ctx, pdb), func(ctx context.Context, db *gorm.DB) error {
 				entity := examples.ExampleTable{
 					ID:   "key2",
 					Desc: "test02",
@@ -46,15 +59,35 @@ func main() {
 				if db.Error != nil {
 					return db.Error
 				}
-				if entity2, err := examples.GetPostgresEntity(ctx, entity.ID); err != nil {
+				if entity2, err := examples.GetPrimaryEntity(ctx, entity.ID); err != nil {
 					return err
 				} else if entity2 == nil {
 					return fmt.Errorf("%s not found", entity.ID)
 				}
-				if entity3, err := examples.GetPostgresEntity(context.Background(), entity.ID); err != nil {
+				if entity3, err := examples.GetPrimaryEntity(context.Background(), entity.ID); err != nil {
 					return err
 				} else if entity3 != nil {
 					return fmt.Errorf("invalid transaction")
+				}
+				if err = replicas.WithTransaction(ctx, func(ctx context.Context, db *gorm.DB) error {
+					if entity, err := examples.GetReplicaEntity(db, entity.ID); err != nil {
+						return err
+					} else if entity == nil {
+						return fmt.Errorf("replica %s not found", entity.ID)
+					}
+					return nil
+				}); err != nil {
+					return err
+				}
+				if err = replicas.With(replicas.Begin(ctx, rpdb), func(ctx context.Context, db *gorm.DB) error {
+					if entity, err := examples.GetReplicaEntity(db, ""); err != nil {
+						return err
+					} else if entity != nil {
+						return fmt.Errorf("invalid transaction")
+					}
+					return nil
+				}); err != nil {
+					return err
 				}
 				return nil
 			}); err != nil {
@@ -67,6 +100,28 @@ func main() {
 			db = db.Create(&entity)
 			if db.Error != nil {
 				return db.Error
+			}
+			time.Sleep(1 * time.Second)
+			if err = replicas.With(ctx, func(ctx context.Context, db *gorm.DB) error {
+				if entity3, err := examples.GetReplicaEntity(db, entity.ID); err != nil {
+					return err
+				} else if entity3 != nil {
+					return fmt.Errorf("invalid transaction")
+				}
+				return nil
+			}); err != nil {
+				panic(err)
+			}
+			return nil
+		}); err != nil {
+			panic(err)
+		}
+		time.Sleep(1 * time.Second)
+		if err = replicas.Run(ctx, func(ctx context.Context, db *gorm.DB) error {
+			if entity3, err := examples.GetReplicaEntity(db, "key1"); err != nil {
+				return err
+			} else if entity3 == nil {
+				return fmt.Errorf("replica %s not found", "key1")
 			}
 			return nil
 		}); err != nil {

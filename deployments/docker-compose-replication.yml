@@ -1,0 +1,67 @@
+version: '2.1'
+
+services:
+  mysql-primary:
+    image: 'docker.io/bitnami/mysql:8.0-debian-10'
+    ports:
+      - '3306:3306'
+    environment:
+      - MYSQL_REPLICATION_MODE=master
+      - MYSQL_REPLICATION_USER=repl_user
+      - MYSQL_REPLICATION_PASSWORD=repl_password
+      - MYSQL_USER=test
+      - MYSQL_PASSWORD=test
+      - MYSQL_DATABASE=testdb
+      - MYSQL_ROOT_PASSWORD=root
+    healthcheck:
+      test: ['CMD', '/opt/bitnami/scripts/mysql/healthcheck.sh']
+      interval: 15s
+      timeout: 5s
+      retries: 6
+  mysql-replica:
+    image: 'docker.io/bitnami/mysql:8.0-debian-10'
+    ports:
+      - '3406:3306'
+    depends_on:
+      - mysql-primary
+    environment:
+      - MYSQL_REPLICATION_MODE=slave
+      - MYSQL_REPLICATION_USER=repl_user
+      - MYSQL_REPLICATION_PASSWORD=repl_password
+      - MYSQL_USER=test
+      - MYSQL_PASSWORD=test
+      - MYSQL_DATABASE=testedb
+      - MYSQL_MASTER_HOST=mysql-primary
+      - MYSQL_MASTER_PORT_NUMBER=3306
+      - MYSQL_MASTER_ROOT_PASSWORD=root
+    healthcheck:
+      test: ['CMD', '/opt/bitnami/scripts/mysql/healthcheck.sh']
+      interval: 15s
+      timeout: 5s
+      retries: 6
+  postgresql-primary:
+    image: 'docker.io/bitnami/postgresql:11-debian-10'
+    ports:
+      - '5432:5432'
+    environment:
+      - POSTGRESQL_REPLICATION_MODE=master
+      - POSTGRESQL_REPLICATION_USER=repl_user
+      - POSTGRESQL_REPLICATION_PASSWORD=repl_password
+      - POSTGRESQL_USERNAME=test
+      - POSTGRESQL_PASSWORD=test
+      - POSTGRESQL_DATABASE=testdb
+      - ALLOW_EMPTY_PASSWORD=yes
+  postgresql-replica:
+    image: 'docker.io/bitnami/postgresql:11-debian-10'
+    ports:
+      - '5532:5432'
+    depends_on:
+      - postgresql-primary
+    environment:
+      - POSTGRESQL_REPLICATION_MODE=slave
+      - POSTGRESQL_REPLICATION_USER=repl_user
+      - POSTGRESQL_REPLICATION_PASSWORD=repl_password
+      - POSTGRESQL_MASTER_HOST=postgresql-primary
+      - POSTGRESQL_PASSWORD=test
+      - POSTGRESQL_MASTER_PORT_NUMBER=5432
+      - ALLOW_EMPTY_PASSWORD=yes

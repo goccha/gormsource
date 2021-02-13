@@ -2,94 +2,76 @@ package transactions
 
 import (
 	"context"
-	"errors"
+	"database/sql"
+	"github.com/goccha/gormsource/pkg"
 	"gorm.io/gorm"
 )
 
 const (
-	withTransaction   = "transactionContext"
 	transactionSource = "transactionSource"
 )
 
-type Connector func() *gorm.DB
+var defaultDB *gorm.DB
+var defaultOptions []*sql.TxOptions
 
-var defaultConnector Connector
+type transactionOption struct {
+	db      *gorm.DB
+	options []*sql.TxOptions
+}
 
-func SetDefaultConnector(b Connector) {
-	defaultConnector = b
+func Setup(conn func() (*gorm.DB, error), opt ...*sql.TxOptions) (*gorm.DB, error) {
+	if db, err := conn(); err != nil {
+		return nil, err
+	} else {
+		defaultDB = db
+		defaultOptions = opt
+		return defaultDB, nil
+	}
 }
 
 func DB(ctx context.Context) *gorm.DB {
-	if v := ctx.Value(withTransaction); v == nil {
-		return getConnection(ctx)
-	} else {
+	if v := ctx.Value(pkg.WithTransaction); v != nil {
 		return v.(*gorm.DB)
 	}
+	return getConnection(ctx)
 }
 
 func getConnection(ctx context.Context) *gorm.DB {
-	if v := ctx.Value(transactionSource); v == nil {
-		return defaultConnector()
-	} else {
-		return v.(Connector)()
+	if v := ctx.Value(transactionSource); v != nil {
+		return v.(*transactionOption).db
 	}
+	return defaultDB
 }
 
-func Begin(ctx context.Context, f Connector) context.Context {
-	return context.WithValue(ctx, transactionSource, f)
+func Begin(ctx context.Context, db *gorm.DB, opts ...*sql.TxOptions) context.Context {
+	return context.WithValue(ctx, transactionSource, &transactionOption{
+		db:      db,
+		options: opts,
+	})
 }
 
-func With(ctx context.Context, f func(ctx context.Context, db *gorm.DB) error) error {
-	if v := ctx.Value(withTransaction); v == nil {
-		return Run(ctx, f)
-	} else {
+func With(ctx context.Context, f func(ctx context.Context, db *gorm.DB) error, opts ...*sql.TxOptions) error {
+	if v := ctx.Value(pkg.WithTransaction); pkg.IsActive(v) {
 		return f(ctx, v.(*gorm.DB))
-	}
-}
-
-func Run(ctx context.Context, txFunc func(ctx context.Context, db *gorm.DB) error) (err error) {
-	if v := ctx.Value(withTransaction); v != nil {
-		ctx = context.WithValue(ctx, withTransaction, nil) // 新しいトランザクションをはじめる
-		return Run(ctx, txFunc)
 	} else {
-		return runTransaction(ctx, func(ctx context.Context, db *gorm.DB) error {
-			ctx = context.WithValue(ctx, withTransaction, db)
-			return txFunc(ctx, db)
-		})
+		return Run(ctx, f, opts...)
 	}
 }
 
-func runTransaction(ctx context.Context, txFunc func(ctx context.Context, db *gorm.DB) error) (err error) {
-	db := getConnection(ctx).Begin()
-	if db.Error != nil {
-		err = db.Error
-		return
+func Run(ctx context.Context, txFunc func(ctx context.Context, db *gorm.DB) error, opts ...*sql.TxOptions) (err error) {
+	if v := ctx.Value(pkg.WithTransaction); v != nil {
+		ctx = context.WithValue(ctx, pkg.WithTransaction, nil) // 新しいトランザクションをはじめる
 	}
-	defer func() {
-		var p interface{}
-		if p = recover(); p != nil {
-			switch p.(type) {
-			case error:
-				err = p.(error)
-			default:
-				err = errors.New("panic")
-			}
-		}
-		if err != nil {
-			db.Rollback()
-		} else {
-			if db = db.Commit(); db.Error != nil {
-				err = db.Error
-				return
-			}
-		}
-		if p != nil {
-			panic(p) // re-throw panic after Rollback
-		}
-	}()
-	err = txFunc(ctx, db)
-	if err != nil {
-		return
+	return pkg.RunTransaction(ctx, begin, func(ctx context.Context, db *gorm.DB) error {
+		ctx = context.WithValue(ctx, pkg.WithTransaction, db)
+		return txFunc(ctx, db)
+	}, opts...)
+}
+
+func begin(ctx context.Context, opts ...*sql.TxOptions) *gorm.DB {
+	db := getConnection(ctx)
+	if opts != nil && len(opts) > 0 {
+		return db.Begin(opts...)
 	}
-	return nil
+	return db.Begin(defaultOptions...)
 }

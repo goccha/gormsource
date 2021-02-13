@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"fmt"
+	"gorm.io/driver/mysql"
 	"os"
 	"testing"
 )
@@ -14,7 +15,8 @@ func TestNew(t *testing.T) {
 		ServerPubKey(".key"), Timeout("1000"), Tls("200"), WriteTimeout("10"))
 	actual := b.Build("user", "pass", "host", 8088, "test")
 	expected := "user:pass@tcp(host:8088)/test?allowAllFiles=true&allowCleartextPasswords=true&allowNativePasswords=true&charset=utf8&collation=utf&clientFoundRows=true&columnsWithAlias=true&interpolateParams=true&loc=Local&maxAllowedPacket=1000&multiStatements=true&parseTime=true&readTimeout=100&rejectReadOnly=true&serverPubKey=.key&timeout=1000&tls=200&writeTimeout=10"
-	if expected != actual {
+	dialector := actual.(*mysql.Dialector)
+	if expected != dialector.DSN {
 		t.Errorf("expected=%s, actual=%s", expected, actual)
 	} else {
 		fmt.Printf("%s\n", actual)
@@ -52,7 +54,8 @@ func TestEnv(t *testing.T) {
 	b := New(Env(&env))
 	actual := b.Build("user", "pass", "host", 8088, "test")
 	expected := "user:pass@udp(host:8088)/test?charset=utf8mb4&collation=utf8_unicode_ci"
-	if expected != actual {
+	dialector := actual.(*mysql.Dialector)
+	if expected != dialector.DSN {
 		t.Errorf("expected=%s, actual=%s", expected, actual)
 	} else {
 		fmt.Printf("%s\n", actual)

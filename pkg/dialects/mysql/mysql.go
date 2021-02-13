@@ -2,7 +2,7 @@ package mysql
 
 import (
 	"github.com/goccha/envar"
-	"github.com/goccha/gormsource/pkg/datasources/dialects"
+	"github.com/goccha/gormsource/pkg/dialects"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"strconv"
@@ -179,10 +179,6 @@ func (b *Builder) Build(user, password, host string, port int, dbname string) go
 	return mysql.Open(b.BuildString(user, password, host, port, dbname))
 }
 
-//func DefaultOptions() *Option {
-//	return &Option{Charset: "utf8mb4", ParseTime: true, Loc: "Local", AllowNativePasswords: true}
-//}
-
 type Environment struct {
 	InstanceName            string
 	Protocol                string
@@ -210,23 +206,41 @@ type Environment struct {
 func (env *Environment) Build(b *Builder) {
 	InstanceName(envar.String(env.InstanceName))(b)
 	Protocol(envar.String(env.Protocol))(b)
-	AllowAllFiles(envar.Bool(env.AllowAllFiles))(b)
-	AllowCleartextPasswords(envar.Bool(env.AllowCleartextPasswords))(b)
+	if ev := envar.Get(env.AllowAllFiles); ev.Has() {
+		AllowAllFiles(ev.Bool(false))(b)
+	}
+	if ev := envar.Get(env.AllowCleartextPasswords); ev.Has() {
+		AllowCleartextPasswords(ev.Bool(false))(b)
+	}
 	if envar.Has(env.AllowNativePasswords) {
 		AllowNativePasswords(envar.Bool(env.AllowNativePasswords))(b)
 	}
-	AllowOldPasswords(envar.Bool(env.AllowOldPasswords))(b)
+	if ev := envar.Get(env.AllowOldPasswords); ev.Has() {
+		AllowOldPasswords(ev.Bool(false))(b)
+	}
 	Charset(envar.String(env.Charset))(b)
 	Collation(envar.String(env.Collation))(b)
-	ClientFoundRows(envar.Bool(env.ClientFoundRows))(b)
-	ColumnsWithAlias(envar.Bool(env.ColumnsWithAlias))(b)
-	InterpolateParams(envar.Bool(env.InterpolateParams))(b)
+	if ev := envar.Get(env.ClientFoundRows); ev.Has() {
+		ClientFoundRows(ev.Bool(false))(b)
+	}
+	if ev := envar.Get(env.ColumnsWithAlias); ev.Has() {
+		ColumnsWithAlias(ev.Bool(false))(b)
+	}
+	if ev := envar.Get(env.InterpolateParams); ev.Has() {
+		InterpolateParams(ev.Bool(false))(b)
+	}
 	Loc(envar.String(env.Loc))(b)
 	MaxAllowedPacket(envar.Int(env.MaxAllowedPacket))(b)
-	MultiStatements(envar.Bool(env.MultiStatements))(b)
-	ParseTime(envar.Bool(env.ParseTime))(b)
+	if ev := envar.Get(env.MultiStatements); ev.Has() {
+		MultiStatements(ev.Bool(false))(b)
+	}
+	if ev := envar.Get(env.ParseTime); ev.Has() {
+		ParseTime(ev.Bool(false))(b)
+	}
 	ReadTimeout(envar.String(env.ReadTimeout))(b)
-	RejectReadOnly(envar.Bool(env.RejectReadOnly))(b)
+	if ev := envar.Get(env.RejectReadOnly); ev.Has() {
+		RejectReadOnly(ev.Bool(false))(b)
+	}
 	ServerPubKey(envar.String(env.ServerPubKey))(b)
 	Timeout(envar.String(env.Timeout))(b)
 	Tls(envar.String(env.Tls))(b)
@@ -241,13 +255,17 @@ func Env(env *Environment) dialects.Option {
 
 func InstanceName(value string) dialects.Option {
 	return func(b dialects.Builder) {
-		b.(*Builder).InstanceName = value
+		if value != "" {
+			b.(*Builder).InstanceName = value
+		}
 	}
 }
 
 func Protocol(value string) dialects.Option {
 	return func(b dialects.Builder) {
-		b.(*Builder).Protocol = value
+		if value != "" {
+			b.(*Builder).Protocol = value
+		}
 	}
 }
 func AllowAllFiles(value bool) dialects.Option {
@@ -272,12 +290,16 @@ func AllowOldPasswords(value bool) dialects.Option {
 }
 func Charset(value string) dialects.Option {
 	return func(b dialects.Builder) {
-		b.(*Builder).Charset = value
+		if value != "" {
+			b.(*Builder).Charset = value
+		}
 	}
 }
 func Collation(value string) dialects.Option {
 	return func(b dialects.Builder) {
-		b.(*Builder).Collation = value
+		if value != "" {
+			b.(*Builder).Collation = value
+		}
 	}
 }
 func ClientFoundRows(value bool) dialects.Option {
@@ -297,12 +319,16 @@ func InterpolateParams(value bool) dialects.Option {
 }
 func Loc(value string) dialects.Option {
 	return func(b dialects.Builder) {
-		b.(*Builder).Loc = value
+		if value != "" {
+			b.(*Builder).Loc = value
+		}
 	}
 }
 func MaxAllowedPacket(value int) dialects.Option {
 	return func(b dialects.Builder) {
-		b.(*Builder).MaxAllowedPacket = value
+		if value > 0 {
+			b.(*Builder).MaxAllowedPacket = value
+		}
 	}
 }
 func MultiStatements(value bool) dialects.Option {
@@ -317,7 +343,9 @@ func ParseTime(value bool) dialects.Option {
 }
 func ReadTimeout(value string) dialects.Option {
 	return func(b dialects.Builder) {
-		b.(*Builder).ReadTimeout = value
+		if value != "" {
+			b.(*Builder).ReadTimeout = value
+		}
 	}
 }
 func RejectReadOnly(value bool) dialects.Option {
@@ -327,21 +355,29 @@ func RejectReadOnly(value bool) dialects.Option {
 }
 func ServerPubKey(value string) dialects.Option {
 	return func(b dialects.Builder) {
-		b.(*Builder).ServerPubKey = value
+		if value != "" {
+			b.(*Builder).ServerPubKey = value
+		}
 	}
 }
 func Timeout(value string) dialects.Option {
 	return func(b dialects.Builder) {
-		b.(*Builder).Timeout = value
+		if value != "" {
+			b.(*Builder).Timeout = value
+		}
 	}
 }
 func Tls(value string) dialects.Option {
 	return func(b dialects.Builder) {
-		b.(*Builder).Tls = value
+		if value != "" {
+			b.(*Builder).Tls = value
+		}
 	}
 }
 func WriteTimeout(value string) dialects.Option {
 	return func(b dialects.Builder) {
-		b.(*Builder).WriteTimeout = value
+		if value != "" {
+			b.(*Builder).WriteTimeout = value
+		}
 	}
 }

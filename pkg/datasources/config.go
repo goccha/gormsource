@@ -1,7 +1,7 @@
 package datasources
 
 import (
-	"github.com/goccha/gormsource/pkg/datasources/dialects"
+	"github.com/goccha/gormsource/pkg/dialects"
 	"gorm.io/gorm"
 	"time"
 )

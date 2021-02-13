@@ -2,7 +2,7 @@ package postgresql
 
 import (
 	"github.com/goccha/envar"
-	"github.com/goccha/gormsource/pkg/datasources/dialects"
+	"github.com/goccha/gormsource/pkg/dialects"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"strconv"
@@ -103,7 +103,9 @@ type Environment struct {
 }
 
 func (env *Environment) Build(b *Builder) {
-	SSLMode(SSLOption(envar.Get(env.SslMode).String("disable")))(b)
+	if ev := envar.Get(env.SslMode); ev.Has() {
+		SSLMode(SSLOption(ev.String("disable")))(b)
+	}
 	FallbackApplicationName(envar.String(env.FallbackApplicationName))(b)
 	d := envar.Duration(env.ConnectTimeout)
 	if d > 0 {
@@ -128,7 +130,9 @@ func SSLMode(value SSLOption) dialects.Option {
 
 func FallbackApplicationName(name string) dialects.Option {
 	return func(b dialects.Builder) {
-		b.(*Builder).FallbackApplicationName = name
+		if name != "" {
+			b.(*Builder).FallbackApplicationName = name
+		}
 	}
 }
 
@@ -140,18 +144,24 @@ func ConnectTimeout(t time.Duration) dialects.Option {
 
 func SSLCert(location string) dialects.Option {
 	return func(b dialects.Builder) {
-		b.(*Builder).SslCert = location
+		if location != "" {
+			b.(*Builder).SslCert = location
+		}
 	}
 }
 
 func SSLKey(location string) dialects.Option {
 	return func(b dialects.Builder) {
-		b.(*Builder).SslKey = location
+		if location != "" {
+			b.(*Builder).SslKey = location
+		}
 	}
 }
 
 func SSLRootCert(location string) dialects.Option {
 	return func(b dialects.Builder) {
-		b.(*Builder).SslRootCert = location
+		if location != "" {
+			b.(*Builder).SslRootCert = location
+		}
 	}
 }

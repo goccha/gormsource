@@ -2,7 +2,7 @@ package datasources
 
 import (
 	"github.com/goccha/envar"
-	"github.com/goccha/gormsource/pkg/datasources/dialects"
+	"github.com/goccha/gormsource/pkg/dialects"
 	"time"
 )
 
