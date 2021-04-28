@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	driver "github.com/go-sql-driver/mysql"
 	"github.com/goccha/envar"
 	"github.com/goccha/gormsource/pkg/dialects"
 	"gorm.io/driver/mysql"
@@ -10,7 +11,8 @@ import (
 )
 
 const (
-	DefaultPort = "3306"
+	DefaultPort      = "3306"
+	NotAvailableLock = 3572
 )
 
 func New(options ...dialects.Option) *Builder {
@@ -22,28 +24,34 @@ func New(options ...dialects.Option) *Builder {
 }
 
 type Builder struct {
-	InstanceName            string
-	Protocol                string
-	AllowAllFiles           bool
-	AllowCleartextPasswords bool
-	AllowNativePasswords    *bool
-	AllowOldPasswords       bool
-	Charset                 string
-	Collation               string
-	ClientFoundRows         bool
-	ColumnsWithAlias        bool
-	InterpolateParams       bool
-	Loc                     string
-	MaxAllowedPacket        int
-	MultiStatements         bool
-	ParseTime               bool
-	ReadTimeout             string
-	RejectReadOnly          bool
-	ServerPubKey            string
-	Timeout                 string
-	Tls                     string
-	WriteTimeout            string
-	SystemVariables         map[string]string
+	InstanceName              string
+	Protocol                  string
+	AllowAllFiles             bool
+	AllowCleartextPasswords   bool
+	AllowNativePasswords      *bool
+	AllowOldPasswords         bool
+	Charset                   string
+	Collation                 string
+	ClientFoundRows           bool
+	ColumnsWithAlias          bool
+	InterpolateParams         bool
+	Loc                       string
+	MaxAllowedPacket          int
+	MultiStatements           bool
+	ParseTime                 bool
+	ReadTimeout               string
+	RejectReadOnly            bool
+	ServerPubKey              string
+	Timeout                   string
+	Tls                       string
+	WriteTimeout              string
+	SystemVariables           map[string]string
+	SkipInitializeWithVersion bool
+	DefaultStringSize         uint
+	DisableDatetimePrecision  bool
+	DontSupportRenameIndex    bool
+	DontSupportRenameColumn   bool
+	Extension                 dialects.Extension
 }
 
 func (b *Builder) Name() string {
@@ -176,31 +184,62 @@ func (b *Builder) BuildString(user, password, host string, port int, dbname stri
 }
 
 func (b *Builder) Build(user, password, host string, port int, dbname string) gorm.Dialector {
-	return mysql.Open(b.BuildString(user, password, host, port, dbname))
+	dsn := b.BuildString(user, password, host, port, dbname)
+	if b.Extension != nil {
+		if db, err := dialects.Connect(b.Name(), dsn, b.Extension); err != nil {
+			panic(err)
+		} else {
+			return mysql.New(mysql.Config{
+				DSN:  dsn,
+				Conn: db,
+			})
+		}
+	}
+	return mysql.New(mysql.Config{
+		DSN:                       dsn,
+		Conn:                      nil,
+		SkipInitializeWithVersion: b.SkipInitializeWithVersion,
+		DefaultStringSize:         b.DefaultStringSize,
+		DisableDatetimePrecision:  b.DisableDatetimePrecision,
+		DontSupportRenameIndex:    b.DontSupportRenameIndex,
+		DontSupportRenameColumn:   b.DontSupportRenameColumn,
+	})
+}
+
+func (b *Builder) IsNotAvailableLock(err error) bool {
+	if v, ok := err.(*driver.MySQLError); ok {
+		return v.Number == NotAvailableLock
+	}
+	return false
 }
 
 type Environment struct {
-	InstanceName            string
-	Protocol                string
-	AllowAllFiles           string
-	AllowCleartextPasswords string
-	AllowNativePasswords    string
-	AllowOldPasswords       string
-	Charset                 string
-	Collation               string
-	ClientFoundRows         string
-	ColumnsWithAlias        string
-	InterpolateParams       string
-	Loc                     string
-	MaxAllowedPacket        string
-	MultiStatements         string
-	ParseTime               string
-	ReadTimeout             string
-	RejectReadOnly          string
-	ServerPubKey            string
-	Timeout                 string
-	Tls                     string
-	WriteTimeout            string
+	InstanceName              string
+	Protocol                  string
+	AllowAllFiles             string
+	AllowCleartextPasswords   string
+	AllowNativePasswords      string
+	AllowOldPasswords         string
+	Charset                   string
+	Collation                 string
+	ClientFoundRows           string
+	ColumnsWithAlias          string
+	InterpolateParams         string
+	Loc                       string
+	MaxAllowedPacket          string
+	MultiStatements           string
+	ParseTime                 string
+	ReadTimeout               string
+	RejectReadOnly            string
+	ServerPubKey              string
+	Timeout                   string
+	Tls                       string
+	WriteTimeout              string
+	SkipInitializeWithVersion string
+	DefaultStringSize         string
+	DisableDatetimePrecision  string
+	DontSupportRenameIndex    string
+	DontSupportRenameColumn   string
 }
 
 func (env *Environment) Build(b *Builder) {
@@ -245,6 +284,27 @@ func (env *Environment) Build(b *Builder) {
 	Timeout(envar.String(env.Timeout))(b)
 	Tls(envar.String(env.Tls))(b)
 	WriteTimeout(envar.String(env.WriteTimeout))(b)
+
+	if envar.Has(env.SkipInitializeWithVersion) {
+		v := envar.Bool(env.SkipInitializeWithVersion)
+		SkipInitializeWithVersion(&v)(b)
+	}
+	if envar.Has(env.DefaultStringSize) {
+		v := envar.Uint(env.DefaultStringSize)
+		DefaultStringSize(&v)(b)
+	}
+	if envar.Has(env.DisableDatetimePrecision) {
+		v := envar.Bool(env.DisableDatetimePrecision)
+		DisableDatetimePrecision(&v)(b)
+	}
+	if envar.Has(env.DontSupportRenameIndex) {
+		v := envar.Bool(env.DontSupportRenameIndex)
+		DontSupportRenameIndex(&v)(b)
+	}
+	if envar.Has(env.DontSupportRenameColumn) {
+		v := envar.Bool(env.DontSupportRenameColumn)
+		DontSupportRenameColumn(&v)(b)
+	}
 }
 
 func Env(env *Environment) dialects.Option {
@@ -378,6 +438,49 @@ func WriteTimeout(value string) dialects.Option {
 	return func(b dialects.Builder) {
 		if value != "" {
 			b.(*Builder).WriteTimeout = value
+		}
+	}
+}
+
+func SkipInitializeWithVersion(value *bool) dialects.Option {
+	return func(b dialects.Builder) {
+		if value != nil {
+			b.(*Builder).SkipInitializeWithVersion = *value
+		}
+	}
+}
+func DefaultStringSize(value *uint) dialects.Option {
+	return func(b dialects.Builder) {
+		if value != nil {
+			b.(*Builder).DefaultStringSize = *value
+		}
+	}
+}
+func DisableDatetimePrecision(value *bool) dialects.Option {
+	return func(b dialects.Builder) {
+		if value != nil {
+			b.(*Builder).DisableDatetimePrecision = *value
+		}
+	}
+}
+func DontSupportRenameIndex(value *bool) dialects.Option {
+	return func(b dialects.Builder) {
+		if value != nil {
+			b.(*Builder).DontSupportRenameIndex = *value
+		}
+	}
+}
+func DontSupportRenameColumn(value *bool) dialects.Option {
+	return func(b dialects.Builder) {
+		if value != nil {
+			b.(*Builder).DontSupportRenameColumn = *value
+		}
+	}
+}
+func Extension(f dialects.Extension) dialects.Option {
+	return func(b dialects.Builder) {
+		if f != nil {
+			b.(*Builder).Extension = f
 		}
 	}
 }

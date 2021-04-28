@@ -38,9 +38,9 @@ func DB(ctx context.Context) *gorm.DB {
 
 func getConnection(ctx context.Context) *gorm.DB {
 	if v := ctx.Value(transactionSource); v != nil {
-		return v.(*transactionOption).db
+		return v.(*transactionOption).db.WithContext(ctx)
 	}
-	return defaultDB
+	return defaultDB.WithContext(ctx)
 }
 
 func Begin(ctx context.Context, db *gorm.DB, opts ...*sql.TxOptions) context.Context {

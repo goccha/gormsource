@@ -74,9 +74,9 @@ func New(connectors ...Connector) (*DB, error) {
 
 func getConnection(ctx context.Context) *gorm.DB {
 	if v := ctx.Value(replicaSource); v != nil {
-		return v.(*DB).DB()
+		return v.(*DB).DB().WithContext(ctx)
 	}
-	return defaultReplica.DB()
+	return defaultReplica.DB().WithContext(ctx)
 }
 
 func Begin(ctx context.Context, db *DB) context.Context {

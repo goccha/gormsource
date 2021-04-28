@@ -3,6 +3,7 @@ package postgresql
 import (
 	"github.com/goccha/envar"
 	"github.com/goccha/gormsource/pkg/dialects"
+	"github.com/jackc/pgconn"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"strconv"
@@ -11,7 +12,8 @@ import (
 )
 
 const (
-	DefaultPort = "5432"
+	DefaultPort      = "5432"
+	NotAvailableLock = "55P03"
 )
 
 func New(options ...dialects.Option) *Builder {
@@ -29,10 +31,12 @@ type Builder struct {
 	SslCert                 string
 	SslKey                  string
 	SslRootCert             string
+	PreferSimpleProtocol    bool
+	Extension               dialects.Extension
 }
 
 func (b *Builder) Name() string {
-	return "postgres"
+	return "pgx"
 }
 
 func (b *Builder) BuildDialector(url string) gorm.Dialector {
@@ -75,7 +79,29 @@ func (b *Builder) BuildString(user, password, host string, port int, dbname stri
 }
 
 func (b *Builder) Build(user, password, host string, port int, dbname string) gorm.Dialector {
-	return postgres.Open(b.BuildString(user, password, host, port, dbname))
+	dsn := b.BuildString(user, password, host, port, dbname)
+	if b.Extension != nil {
+		if db, err := dialects.Connect(b.Name(), dsn, b.Extension); err != nil {
+			return nil
+		} else {
+			return postgres.New(postgres.Config{
+				DSN:                  dsn,
+				Conn:                 db,
+				PreferSimpleProtocol: b.PreferSimpleProtocol,
+			})
+		}
+	}
+	return postgres.New(postgres.Config{
+		DSN:                  dsn,
+		PreferSimpleProtocol: b.PreferSimpleProtocol,
+	})
+}
+
+func (b *Builder) IsNotAvailableLock(err error) bool {
+	if v, ok := err.(*pgconn.PgError); ok {
+		return v.Code == NotAvailableLock
+	}
+	return false
 }
 
 type SSLOption string
@@ -100,6 +126,7 @@ type Environment struct {
 	SslCert                 string
 	SslKey                  string
 	SslRootCert             string
+	PreferSimpleProtocol    string
 }
 
 func (env *Environment) Build(b *Builder) {
@@ -114,6 +141,10 @@ func (env *Environment) Build(b *Builder) {
 	SSLCert(envar.String(env.SslCert))(b)
 	SSLKey(envar.String(env.SslKey))(b)
 	SSLRootCert(envar.String(env.SslRootCert))(b)
+	if envar.Has(env.PreferSimpleProtocol) {
+		v := envar.Bool(env.PreferSimpleProtocol)
+		PreferSimpleProtocol(&v)(b)
+	}
 }
 
 func Env(env *Environment) dialects.Option {
@@ -162,6 +193,21 @@ func SSLRootCert(location string) dialects.Option {
 	return func(b dialects.Builder) {
 		if location != "" {
 			b.(*Builder).SslRootCert = location
+		}
+	}
+}
+
+func PreferSimpleProtocol(simple *bool) dialects.Option {
+	return func(b dialects.Builder) {
+		if simple != nil {
+			b.(*Builder).PreferSimpleProtocol = *simple
+		}
+	}
+}
+func Extension(f dialects.Extension) dialects.Option {
+	return func(b dialects.Builder) {
+		if f != nil {
+			b.(*Builder).Extension = f
 		}
 	}
 }
