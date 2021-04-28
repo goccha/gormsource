@@ -4,7 +4,7 @@ go 1.15
 
 require (
 	github.com/goccha/envar v0.1.0
-	github.com/goccha/gormsource v1.2.0
+	github.com/goccha/gormsource v1.3.0
 	github.com/jackc/pgconn v1.8.0
 	gorm.io/driver/postgres v1.0.8
 	gorm.io/gorm v1.20.12
