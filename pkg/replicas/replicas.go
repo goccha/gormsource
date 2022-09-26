@@ -3,17 +3,24 @@ package replicas
 import (
 	"context"
 	"database/sql"
+	"sync"
+	"sync/atomic"
+
 	"github.com/goccha/gormsource/pkg"
 	"github.com/goccha/log"
 	"gorm.io/gorm"
-	"sync"
-	"sync/atomic"
 )
 
-const (
-	withReadOnly  = "readOnlyTransaction"
-	replicaSource = "replicaSource"
-)
+type contextKey struct {
+	key string
+}
+
+func (key contextKey) String() string {
+	return key.key
+}
+
+var withReadOnly = contextKey{key: "readOnlyTransaction"}
+var replicaSource = contextKey{key: "replicaSource"}
 
 var replicaOption = &sql.TxOptions{
 	ReadOnly: true,
@@ -94,7 +101,7 @@ func With(ctx context.Context, f func(ctx context.Context, db *gorm.DB) error) e
 func WithTransaction(ctx context.Context, f func(ctx context.Context, db *gorm.DB) error) error {
 	if v := ctx.Value(withReadOnly); pkg.IsActive(v) {
 		return f(ctx, v.(*gorm.DB))
-	} else if v = ctx.Value(pkg.WithTransaction); v != nil {
+	} else if v = ctx.Value(pkg.WithTransaction()); v != nil {
 		return f(ctx, v.(*gorm.DB))
 	} else {
 		return Run(ctx, f)

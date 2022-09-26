@@ -3,13 +3,20 @@ package transactions
 import (
 	"context"
 	"database/sql"
+
 	"github.com/goccha/gormsource/pkg"
 	"gorm.io/gorm"
 )
 
-const (
-	transactionSource = "transactionSource"
-)
+type contextKey struct {
+	key string
+}
+
+func (key contextKey) String() string {
+	return key.key
+}
+
+var transactionSource = contextKey{key: "transactionSource"}
 
 var defaultDB *gorm.DB
 var defaultOptions []*sql.TxOptions
@@ -30,7 +37,7 @@ func Setup(conn func() (*gorm.DB, error), opt ...*sql.TxOptions) (*gorm.DB, erro
 }
 
 func DB(ctx context.Context) *gorm.DB {
-	if v := ctx.Value(pkg.WithTransaction); v != nil {
+	if v := ctx.Value(pkg.WithTransaction()); v != nil {
 		return v.(*gorm.DB)
 	}
 	return getConnection(ctx)
@@ -51,7 +58,7 @@ func Begin(ctx context.Context, db *gorm.DB, opts ...*sql.TxOptions) context.Con
 }
 
 func With(ctx context.Context, f func(ctx context.Context, db *gorm.DB) error, opts ...*sql.TxOptions) error {
-	if v := ctx.Value(pkg.WithTransaction); pkg.IsActive(v) {
+	if v := ctx.Value(pkg.WithTransaction()); pkg.IsActive(v) {
 		return f(ctx, v.(*gorm.DB))
 	} else {
 		return Run(ctx, f, opts...)
@@ -59,18 +66,18 @@ func With(ctx context.Context, f func(ctx context.Context, db *gorm.DB) error, o
 }
 
 func Run(ctx context.Context, txFunc func(ctx context.Context, db *gorm.DB) error, opts ...*sql.TxOptions) (err error) {
-	if v := ctx.Value(pkg.WithTransaction); v != nil {
-		ctx = context.WithValue(ctx, pkg.WithTransaction, nil) // 新しいトランザクションをはじめる
+	if v := ctx.Value(pkg.WithTransaction()); v != nil {
+		ctx = context.WithValue(ctx, pkg.WithTransaction(), nil) // 新しいトランザクションをはじめる
 	}
 	return pkg.RunTransaction(ctx, begin, func(ctx context.Context, db *gorm.DB) error {
-		ctx = context.WithValue(ctx, pkg.WithTransaction, db)
+		ctx = context.WithValue(ctx, pkg.WithTransaction(), db)
 		return txFunc(ctx, db)
 	}, opts...)
 }
 
 func begin(ctx context.Context, opts ...*sql.TxOptions) *gorm.DB {
 	db := getConnection(ctx)
-	if opts != nil && len(opts) > 0 {
+	if len(opts) > 0 {
 		return db.Begin(opts...)
 	}
 	return db.Begin(defaultOptions...)

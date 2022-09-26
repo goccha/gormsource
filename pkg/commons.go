@@ -3,14 +3,25 @@ package pkg
 import (
 	"context"
 	"database/sql"
+	"reflect"
+
 	"github.com/goccha/errors"
 	"gorm.io/gorm"
-	"reflect"
 )
 
-const (
-	WithTransaction = "transactionContext"
-)
+type contextKey struct {
+	key string
+}
+
+func (key contextKey) String() string {
+	return key.key
+}
+
+var withTransaction = contextKey{key: "transactionContext"}
+
+func WithTransaction() interface{} {
+	return withTransaction
+}
 
 type Begin func(ctx context.Context, opts ...*sql.TxOptions) *gorm.DB
 
@@ -33,9 +44,9 @@ func RunTransaction(ctx context.Context, begin Begin, txFunc func(ctx context.Co
 	defer func() {
 		var p interface{}
 		if p = recover(); p != nil {
-			switch p.(type) {
+			switch p := p.(type) {
 			case error:
-				err = p.(error)
+				err = p
 			default:
 				err = errors.New("panic")
 			}

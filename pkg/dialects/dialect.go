@@ -2,11 +2,12 @@ package dialects
 
 import (
 	"database/sql"
+	"strings"
+	"time"
+
 	"github.com/goccha/errors"
 	"github.com/goccha/log"
 	"gorm.io/gorm"
-	"strings"
-	"time"
 )
 
 type Builder interface {
