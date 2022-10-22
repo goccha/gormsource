@@ -82,3 +82,15 @@ func begin(ctx context.Context, opts ...*sql.TxOptions) *gorm.DB {
 	}
 	return db.Begin(defaultOptions...)
 }
+
+func EnableHook(ctx context.Context) context.Context {
+	return pkg.EnableHook(ctx)
+}
+
+func HandleRollback(ctx context.Context, hook pkg.Hook) {
+	pkg.RegisterRollback(ctx, hook)
+}
+
+func HandleCommit(ctx context.Context, hook pkg.Hook) {
+	pkg.RegisterCommit(ctx, hook)
+}

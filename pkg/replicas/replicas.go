@@ -39,6 +39,15 @@ func (db *DB) DB() *gorm.DB {
 	return db.dbs[db.counter.next()]
 }
 
+func (db *DB) Use(plugin gorm.Plugin) error {
+	for _, v := range db.dbs {
+		if err := v.Use(plugin); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (db *DB) Close() {
 	for _, d := range db.dbs {
 		if sqlDB, err := d.DB(); err != nil {
@@ -145,4 +154,16 @@ func (c *CyclicCounter) next() int32 {
 		c.mu.RUnlock()
 	}
 	return c.cnt
+}
+
+func EnableHook(ctx context.Context) context.Context {
+	return pkg.EnableHook(ctx)
+}
+
+func HandleRollback(ctx context.Context, hook pkg.Hook) {
+	pkg.RegisterRollback(ctx, hook)
+}
+
+func HandleCommit(ctx context.Context, hook pkg.Hook) {
+	pkg.RegisterCommit(ctx, hook)
 }
