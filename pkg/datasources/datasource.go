@@ -1,11 +1,12 @@
 package datasources
 
 import (
-	"github.com/goccha/errors"
+	"time"
+
 	"github.com/goccha/log"
+	"github.com/pkg/errors"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
-	"time"
 )
 
 func connect(dialect gorm.Dialector, config *gorm.Config) (*gorm.DB, error) {
