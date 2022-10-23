@@ -3,7 +3,7 @@ package datasources
 import (
 	"time"
 
-	"github.com/goccha/log"
+	"github.com/goccha/envar/pkg/log"
 	"github.com/pkg/errors"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"

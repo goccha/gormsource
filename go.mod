@@ -4,7 +4,6 @@ go 1.19
 
 require (
 	github.com/goccha/envar v0.2.0
-	github.com/goccha/log v0.0.2
 	github.com/pkg/errors v0.9.1
 	gorm.io/gorm v1.24.0
 )

@@ -6,8 +6,8 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/goccha/envar/pkg/log"
 	"github.com/goccha/gormsource/pkg"
-	"github.com/goccha/log"
 	"gorm.io/gorm"
 )
 

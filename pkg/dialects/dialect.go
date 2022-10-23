@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/goccha/log"
+	"github.com/goccha/envar/pkg/log"
 	"github.com/pkg/errors"
 	"gorm.io/gorm"
 )
