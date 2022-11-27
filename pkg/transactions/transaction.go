@@ -57,22 +57,26 @@ func Begin(ctx context.Context, db *gorm.DB, opts ...*sql.TxOptions) context.Con
 	})
 }
 
-func With(ctx context.Context, f func(ctx context.Context, db *gorm.DB) error, opts ...*sql.TxOptions) error {
+func With[T any](ctx context.Context, f func(ctx context.Context, db *gorm.DB) (T, error), opts ...*sql.TxOptions) (T, error) {
 	if v := ctx.Value(pkg.WithTransaction()); pkg.IsActive(v) {
-		return f(ctx, v.(*gorm.DB))
+		return f(ctx, v.(*pkg.TransactionContainer).DB)
 	} else {
 		return Run(ctx, f, opts...)
 	}
 }
 
-func Run(ctx context.Context, txFunc func(ctx context.Context, db *gorm.DB) error, opts ...*sql.TxOptions) (err error) {
+func Run[T any](ctx context.Context, txFunc func(ctx context.Context, db *gorm.DB) (T, error), opts ...*sql.TxOptions) (res T, err error) {
 	if v := ctx.Value(pkg.WithTransaction()); v != nil {
 		ctx = context.WithValue(ctx, pkg.WithTransaction(), nil) // 新しいトランザクションをはじめる
 	}
-	return pkg.RunTransaction(ctx, begin, func(ctx context.Context, db *gorm.DB) error {
-		ctx = context.WithValue(ctx, pkg.WithTransaction(), db)
-		return txFunc(ctx, db)
-	}, opts...)
+	return pkg.RunTransaction[T](ctx, begin, func(ctx context.Context, db *gorm.DB) (context.Context, T, error) {
+		ctx = context.WithValue(ctx, pkg.WithTransaction(), &pkg.TransactionContainer{
+			DB:              db,
+			TransactionType: pkg.Transaction,
+		})
+		res, err = txFunc(ctx, db)
+		return ctx, res, err
+	}, pkg.WithTransaction(), opts...)
 }
 
 func begin(ctx context.Context, opts ...*sql.TxOptions) *gorm.DB {
@@ -83,14 +87,10 @@ func begin(ctx context.Context, opts ...*sql.TxOptions) *gorm.DB {
 	return db.Begin(defaultOptions...)
 }
 
-func EnableHook(ctx context.Context) context.Context {
-	return pkg.EnableHook(ctx)
-}
-
 func HandleRollback(ctx context.Context, hook pkg.Hook) {
-	pkg.RegisterRollback(ctx, hook)
+	pkg.RegisterRollback(ctx, pkg.WithTransaction(), hook)
 }
 
 func HandleCommit(ctx context.Context, hook pkg.Hook) {
-	pkg.RegisterCommit(ctx, hook)
+	pkg.RegisterCommit(ctx, pkg.WithTransaction(), hook)
 }
