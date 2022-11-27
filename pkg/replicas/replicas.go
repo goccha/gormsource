@@ -99,32 +99,36 @@ func Begin(ctx context.Context, db *DB) context.Context {
 	return context.WithValue(ctx, replicaSource, db)
 }
 
-func With(ctx context.Context, f func(ctx context.Context, db *gorm.DB) error) error {
+func With[T any](ctx context.Context, f func(ctx context.Context, db *gorm.DB) (T, error)) (T, error) {
 	if v := ctx.Value(withReadOnly); v != nil {
-		return f(ctx, v.(*gorm.DB))
+		return f(ctx, v.(*pkg.TransactionContainer).DB)
 	} else {
 		return Run(ctx, f)
 	}
 }
 
-func WithTransaction(ctx context.Context, f func(ctx context.Context, db *gorm.DB) error) error {
+func WithTransaction[T any](ctx context.Context, f func(ctx context.Context, db *gorm.DB) (T, error)) (T, error) {
 	if v := ctx.Value(withReadOnly); pkg.IsActive(v) {
-		return f(ctx, v.(*gorm.DB))
+		return f(ctx, v.(*pkg.TransactionContainer).DB)
 	} else if v = ctx.Value(pkg.WithTransaction()); v != nil {
-		return f(ctx, v.(*gorm.DB))
+		return f(ctx, v.(*pkg.TransactionContainer).DB)
 	} else {
 		return Run(ctx, f)
 	}
 }
 
-func Run(ctx context.Context, f func(ctx context.Context, db *gorm.DB) error) error {
+func Run[T any](ctx context.Context, f func(ctx context.Context, db *gorm.DB) (T, error), opts ...*sql.TxOptions) (res T, err error) {
 	if v := ctx.Value(withReadOnly); v != nil {
 		ctx = context.WithValue(ctx, withReadOnly, nil) // 新しいトランザクションをはじめる
 	}
-	return pkg.RunTransaction(ctx, begin, func(ctx context.Context, db *gorm.DB) error {
-		ctx = context.WithValue(ctx, withReadOnly, db)
-		return f(ctx, db)
-	})
+	return pkg.RunTransaction[T](ctx, begin, func(ctx context.Context, db *gorm.DB) (context.Context, T, error) {
+		ctx = context.WithValue(ctx, withReadOnly, &pkg.TransactionContainer{
+			DB:              db,
+			TransactionType: pkg.ReadOnly,
+		})
+		res, err = f(ctx, db)
+		return ctx, res, err
+	}, withReadOnly, opts...)
 }
 
 func begin(ctx context.Context, _ ...*sql.TxOptions) *gorm.DB {
@@ -156,14 +160,10 @@ func (c *CyclicCounter) next() int32 {
 	return c.cnt
 }
 
-func EnableHook(ctx context.Context) context.Context {
-	return pkg.EnableHook(ctx)
-}
-
 func HandleRollback(ctx context.Context, hook pkg.Hook) {
-	pkg.RegisterRollback(ctx, hook)
+	pkg.RegisterRollback(ctx, withReadOnly, hook)
 }
 
 func HandleCommit(ctx context.Context, hook pkg.Hook) {
-	pkg.RegisterCommit(ctx, hook)
+	pkg.RegisterCommit(ctx, withReadOnly, hook)
 }
