@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	github.com/goccha/envar v0.2.3
-	github.com/goccha/gormsource v1.5.5
+	github.com/goccha/gormsource v1.5.6
 	github.com/jackc/pgconn v1.14.3
 	gorm.io/driver/postgres v1.5.6
 	gorm.io/gorm v1.25.7
