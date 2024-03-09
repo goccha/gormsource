@@ -5,7 +5,7 @@ go 1.19
 require (
 	github.com/go-sql-driver/mysql v1.7.1
 	github.com/goccha/envar v0.2.3
-	github.com/goccha/gormsource v1.5.5
+	github.com/goccha/gormsource v1.5.6
 	gorm.io/driver/mysql v1.5.4
 	gorm.io/gorm v1.25.7
 )
