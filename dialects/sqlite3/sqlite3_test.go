@@ -20,10 +20,8 @@ func TestNew(t *testing.T) {
 }
 
 func TestEnv(t *testing.T) {
-	env := Environment{Path: "SQLITE3_PATH"}
 	_ = os.Setenv("SQLITE3_PATH", "./testenv.db")
-
-	b := New(Env(&env))
+	b := New(Env(Environment{Path: "SQLITE3_PATH"}))
 	actual := b.Build("", "", "", 0, "")
 	expected := "./testenv.db"
 	dialector := actual.(*sqlite.Dialector)

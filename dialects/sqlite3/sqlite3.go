@@ -42,11 +42,11 @@ type Environment struct {
 	Path string
 }
 
-func (env *Environment) Build(b *Builder) {
-	Path(envar.String(env.Path))(b)
+func (env Environment) Build(b *Builder) {
+	Path(envar.String(env.Path, "SQLITE_PATH"))(b)
 }
 
-func Env(env *Environment) dialects.Option {
+func Env(env Environment) dialects.Option {
 	return func(b dialects.Builder) {
 		env.Build(b.(*Builder))
 	}
