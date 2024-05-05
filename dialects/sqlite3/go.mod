@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	github.com/goccha/envar v0.2.3
-	github.com/goccha/gormsource v1.5.6
+	github.com/goccha/gormsource v1.5.7
 	gorm.io/driver/sqlite v1.5.5
 	gorm.io/gorm v1.25.10
 )
