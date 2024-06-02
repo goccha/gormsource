@@ -1,6 +1,7 @@
 package postgresql
 
 import (
+	"errors"
 	"github.com/goccha/envar"
 	"github.com/goccha/gormsource/pkg/dialects"
 	"github.com/jackc/pgconn"
@@ -98,7 +99,8 @@ func (b *Builder) Build(user, password, host string, port int, dbname string) go
 }
 
 func (b *Builder) IsNotAvailableLock(err error) bool {
-	if v, ok := err.(*pgconn.PgError); ok {
+	var v *pgconn.PgError
+	if errors.As(err, &v) {
 		return v.Code == NotAvailableLock
 	}
 	return false

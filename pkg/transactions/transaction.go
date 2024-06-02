@@ -3,8 +3,8 @@ package transactions
 import (
 	"context"
 	"database/sql"
+	"github.com/goccha/gormsource/pkg/foundations"
 
-	"github.com/goccha/gormsource/pkg"
 	"gorm.io/gorm"
 )
 
@@ -37,7 +37,7 @@ func Setup(conn func() (*gorm.DB, error), opt ...*sql.TxOptions) (*gorm.DB, erro
 }
 
 func DB(ctx context.Context) *gorm.DB {
-	if v := ctx.Value(pkg.WithTransaction()); v != nil {
+	if v := ctx.Value(foundations.WithTransaction()); v != nil {
 		return v.(*gorm.DB)
 	}
 	return getConnection(ctx)
@@ -58,25 +58,25 @@ func Begin(ctx context.Context, db *gorm.DB, opts ...*sql.TxOptions) context.Con
 }
 
 func With[T any](ctx context.Context, f func(ctx context.Context, db *gorm.DB) (T, error), opts ...*sql.TxOptions) (T, error) {
-	if v := ctx.Value(pkg.WithTransaction()); pkg.IsActive(v) {
-		return f(ctx, v.(*pkg.TransactionContainer).DB)
+	if v := ctx.Value(foundations.WithTransaction()); foundations.IsActive(v) {
+		return f(ctx, v.(*foundations.TransactionContainer).DB)
 	} else {
 		return Run(ctx, f, opts...)
 	}
 }
 
 func Run[T any](ctx context.Context, txFunc func(ctx context.Context, db *gorm.DB) (T, error), opts ...*sql.TxOptions) (res T, err error) {
-	if v := ctx.Value(pkg.WithTransaction()); v != nil {
-		ctx = context.WithValue(ctx, pkg.WithTransaction(), nil) // 新しいトランザクションをはじめる
+	if v := ctx.Value(foundations.WithTransaction()); v != nil {
+		ctx = context.WithValue(ctx, foundations.WithTransaction(), nil) // 新しいトランザクションをはじめる
 	}
-	return pkg.RunTransaction[T](ctx, begin, func(ctx context.Context, db *gorm.DB) (context.Context, T, error) {
-		ctx = context.WithValue(ctx, pkg.WithTransaction(), &pkg.TransactionContainer{
+	return foundations.RunTransaction[T](ctx, begin, func(ctx context.Context, db *gorm.DB) (context.Context, T, error) {
+		ctx = context.WithValue(ctx, foundations.WithTransaction(), &foundations.TransactionContainer{
 			DB:              db,
-			TransactionType: pkg.Transaction,
+			TransactionType: foundations.Transaction,
 		})
 		res, err = txFunc(ctx, db)
 		return ctx, res, err
-	}, pkg.WithTransaction(), opts...)
+	}, foundations.WithTransaction(), opts...)
 }
 
 func begin(ctx context.Context, opts ...*sql.TxOptions) *gorm.DB {
@@ -87,10 +87,10 @@ func begin(ctx context.Context, opts ...*sql.TxOptions) *gorm.DB {
 	return db.Begin(defaultOptions...)
 }
 
-func HandleRollback(ctx context.Context, hook pkg.Hook) {
-	pkg.RegisterRollback(ctx, pkg.WithTransaction(), hook)
+func HandleRollback(ctx context.Context, hook foundations.Hook) {
+	foundations.RegisterRollback(ctx, foundations.WithTransaction(), hook)
 }
 
-func HandleCommit(ctx context.Context, hook pkg.Hook) {
-	pkg.RegisterCommit(ctx, pkg.WithTransaction(), hook)
+func HandleCommit(ctx context.Context, hook foundations.Hook) {
+	foundations.RegisterCommit(ctx, foundations.WithTransaction(), hook)
 }
