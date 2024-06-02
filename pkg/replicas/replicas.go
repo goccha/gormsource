@@ -3,11 +3,11 @@ package replicas
 import (
 	"context"
 	"database/sql"
+	"github.com/goccha/gormsource/pkg/foundations"
 	"sync"
 	"sync/atomic"
 
 	"github.com/goccha/envar/pkg/log"
-	"github.com/goccha/gormsource/pkg"
 	"gorm.io/gorm"
 )
 
@@ -101,17 +101,17 @@ func Begin(ctx context.Context, db *DB) context.Context {
 
 func With[T any](ctx context.Context, f func(ctx context.Context, db *gorm.DB) (T, error)) (T, error) {
 	if v := ctx.Value(withReadOnly); v != nil {
-		return f(ctx, v.(*pkg.TransactionContainer).DB)
+		return f(ctx, v.(*foundations.TransactionContainer).DB)
 	} else {
 		return Run(ctx, f)
 	}
 }
 
 func WithTransaction[T any](ctx context.Context, f func(ctx context.Context, db *gorm.DB) (T, error)) (T, error) {
-	if v := ctx.Value(withReadOnly); pkg.IsActive(v) {
-		return f(ctx, v.(*pkg.TransactionContainer).DB)
-	} else if v = ctx.Value(pkg.WithTransaction()); v != nil {
-		return f(ctx, v.(*pkg.TransactionContainer).DB)
+	if v := ctx.Value(withReadOnly); foundations.IsActive(v) {
+		return f(ctx, v.(*foundations.TransactionContainer).DB)
+	} else if v = ctx.Value(foundations.WithTransaction()); v != nil {
+		return f(ctx, v.(*foundations.TransactionContainer).DB)
 	} else {
 		return Run(ctx, f)
 	}
@@ -121,10 +121,10 @@ func Run[T any](ctx context.Context, f func(ctx context.Context, db *gorm.DB) (T
 	if v := ctx.Value(withReadOnly); v != nil {
 		ctx = context.WithValue(ctx, withReadOnly, nil) // 新しいトランザクションをはじめる
 	}
-	return pkg.RunTransaction[T](ctx, begin, func(ctx context.Context, db *gorm.DB) (context.Context, T, error) {
-		ctx = context.WithValue(ctx, withReadOnly, &pkg.TransactionContainer{
+	return foundations.RunTransaction[T](ctx, begin, func(ctx context.Context, db *gorm.DB) (context.Context, T, error) {
+		ctx = context.WithValue(ctx, withReadOnly, &foundations.TransactionContainer{
 			DB:              db,
-			TransactionType: pkg.ReadOnly,
+			TransactionType: foundations.ReadOnly,
 		})
 		res, err = f(ctx, db)
 		return ctx, res, err
@@ -160,10 +160,10 @@ func (c *CyclicCounter) next() int32 {
 	return c.cnt
 }
 
-func HandleRollback(ctx context.Context, hook pkg.Hook) {
-	pkg.RegisterRollback(ctx, withReadOnly, hook)
+func HandleRollback(ctx context.Context, hook foundations.Hook) {
+	foundations.RegisterRollback(ctx, withReadOnly, hook)
 }
 
-func HandleCommit(ctx context.Context, hook pkg.Hook) {
-	pkg.RegisterCommit(ctx, withReadOnly, hook)
+func HandleCommit(ctx context.Context, hook foundations.Hook) {
+	foundations.RegisterCommit(ctx, withReadOnly, hook)
 }

@@ -1,4 +1,4 @@
-package pkg
+package foundations
 
 import (
 	"context"

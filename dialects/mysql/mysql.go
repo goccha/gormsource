@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"errors"
 	driver "github.com/go-sql-driver/mysql"
 	"github.com/goccha/envar"
 	"github.com/goccha/gormsource/pkg/dialects"
@@ -207,7 +208,8 @@ func (b *Builder) Build(user, password, host string, port int, dbname string) go
 }
 
 func (b *Builder) IsNotAvailableLock(err error) bool {
-	if v, ok := err.(*driver.MySQLError); ok {
+	var v *driver.MySQLError
+	if errors.As(err, &v) {
 		return v.Number == NotAvailableLock
 	}
 	return false
